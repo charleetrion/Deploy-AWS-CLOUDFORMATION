@@ -1,0 +1,73 @@
+# creacion del bucket llamado "sena-clicoh"
+Resources:
+  PrivateS3Bucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: "sena-clicoh"
+      AccessControl: "Private"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: "Enabled"
+      Tags:
+        - Key: "Environment"
+          Value: "Development"
+
+# politica del bucket
+  S3BucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref PrivateS3Bucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Deny"
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !Sub "arn:aws:s3:::sena-clicoh"
+              - !Sub "arn:aws:s3:::sena-clicoh/*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": false
+
+# Rol donde esta configurado el usuario
+  S3AccessRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "S3AccessRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              AWS: "arn:aws:iam::503561429281:user/admin"
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: "S3AccessPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "s3:GetObject"
+                  - "s3:PutObject"
+                  - "s3:DeleteObject"
+                Resource:
+                  - !Sub "arn:aws:s3:::sena-clicoh/*"
+# salidas
+Outputs:
+  BucketName:
+    Description: "Nombre del bucket creado"
+    Value: !Ref PrivateS3Bucket
+  BucketArn:
+    Description: "ARN del bucket creado"
+    Value: !GetAtt PrivateS3Bucket.Arn
+  RoleName:
+    Description: "Nombre del rol creado"
+    Value: !Ref S3AccessRole
+
+

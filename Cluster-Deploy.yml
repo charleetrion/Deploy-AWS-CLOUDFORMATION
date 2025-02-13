@@ -1,0 +1,113 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: "t2.micro"
+  minSize:
+    Type: Number
+    Default: 1
+  maxSize:
+    Type: Number
+    Default: 1
+  ECSAMI:
+    Type: String
+    Default: "ami-085ad6ae776d8f09c"
+
+Resources:
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: "ECSCluster"
+
+  ECSInstanceLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: "ECSLaunchTemplate"
+      LaunchTemplateData:
+        ImageId: !Ref ECSAMI
+        InstanceType: !Ref InstanceType
+        IamInstanceProfile:
+          Name: !Ref ECSInstanceProfile
+        NetworkInterfaces:
+          - AssociatePublicIpAddress: false
+            DeviceIndex: 0
+            Groups:
+              - !Ref ECSInstanceSecurityGroup
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+            yum install -y aws-cfn-bootstrap
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
+
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn: "ECSInstanceLaunchTemplate"
+    Properties:
+      VPCZoneIdentifier:
+        - !ImportValue "MyPrivateSubnetId"
+      MinSize: !Ref minSize
+      MaxSize: !Ref maxSize
+      DesiredCapacity: !Ref minSize
+      LaunchTemplate:
+        LaunchTemplateName:  "ECSLaunchTemplate"
+        Version: !GetAtt ECSInstanceLaunchTemplate.LatestVersionNumber
+      MetricsCollection:
+        - Granularity: "1Minute"
+
+  ECSInstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Allow HTTP traffic for ECS"
+      VpcId: !ImportValue "MyVPCId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          SourceSecurityGroupId: !ImportValue "MyLoadBalancerSecurityGroupId"
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: "0.0.0.0/0"
+
+  ECSInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref ECSInstanceRole
+
+  ECSInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AWSCloudFormationFullAccess
+
+Outputs:
+  ECSClusterName:
+    Description: Nombre del clúster de ECS
+    Value: !Ref ECSCluster
+    Export:
+      Name: ECSClusterName
+
+  ECSInstanceSecurityGroupId:
+    Description: "ID del grupo de seguridad para las instancias de ECS"
+    Value: !Ref ECSInstanceSecurityGroup
+    Export:
+      Name: "MyECSInstanceSecurityGroupId"
+

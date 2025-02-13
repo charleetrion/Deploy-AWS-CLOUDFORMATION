@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Resources:
+  MyLoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Allow HTTP traffic"
+      VpcId:  !ImportValue MyVPCId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: "Name"
+          Value: MyLoadBalancerSecurityGroup
+
+  MyLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: "MyApplicationLoadBalancer"
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref MyLoadBalancerSecurityGroup
+      Subnets:
+        - !ImportValue MyPublicSubnetId
+        - !ImportValue MyPublicSubnet2Id
+      Type: application
+      Tags:
+        - Key: "Name"
+          Value: "MyApplicationLoadBalancer"
+
+  MyTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: "MyAppTargetGroup"
+      VpcId: !ImportValue MyVPCId
+      Port: 80
+      Protocol: HTTP
+      TargetType: instance
+      HealthCheckPath: /
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 5
+
+  MyListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref MyLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref MyTargetGroup
+
+Outputs:
+  LoadBalancerDNSName:
+    Value: !GetAtt MyLoadBalancer.DNSName
+    Export:
+      Name: MyLoadBalancerDNSName
+
+  LoadBalancerSecurityGroupId:
+    Value: !Ref MyLoadBalancerSecurityGroup
+    Export:
+      Name: MyLoadBalancerSecurityGroupId
+
+  ApplicationTargetGroupArn:
+    Value: !Ref MyTargetGroup
+    Export:
+      Name: MyAppTargetGroupArn
