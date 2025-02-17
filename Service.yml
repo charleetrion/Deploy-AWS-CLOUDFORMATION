@@ -1,0 +1,114 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Resources:
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Allow HTTP traffic on port 8000"
+      VpcId: !ImportValue MyVPCId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: load-balancer-8000
+      Scheme: internet-facing
+      Subnets:
+        - !ImportValue MyPublicSubnetId
+        - !ImportValue MyPublicSubnet2Id
+      SecurityGroups:
+        - !Ref SecurityGroup
+      Type: application
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: "target-group-8000"
+      VpcId: !ImportValue MyVPCId
+      Port: 8000
+      Protocol: HTTP
+      TargetType: instance
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: "/health"
+      HealthCheckPort: 8000
+      HealthCheckProtocol: HTTP
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 8000
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: task-family-fastapi
+      NetworkMode: "bridge"
+      ContainerDefinitions:
+        - Name: Deploy
+          Image: "503561429281.dkr.ecr.us-east-1.amazonaws.com/fastapi-cloud:latest"
+          Memory: 128
+          Cpu: 128
+          PortMappings:
+            - ContainerPort: 8000
+              HostPort: 8000
+
+  ECSService:
+    Type: AWS::ECS::Service
+    DependsOn: Listener
+    Properties:
+      Cluster: !ImportValue ECSClusterName
+      ServiceName: service-fastapi
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: 1
+      LaunchType: EC2
+      LoadBalancers:
+        - ContainerName: Deploy
+          ContainerPort: 8000
+          TargetGroupArn: !Ref TargetGroup
+
+Outputs:
+  LoadBalancerDNSName:
+    Value: !GetAtt LoadBalancer.DNSName
+    Export:
+      Name: LoadBalancerDNSName
+
+  LoadBalancerArn:
+    Value: !Ref LoadBalancer
+    Export:
+      Name: LoadBalancerArn
+
+  TargetGroupArn:
+    Value: !Ref TargetGroup
+    Export:
+      Name: TargetGroupArn
+
+  ListenerArn:
+    Value: !Ref Listener
+    Export:
+      Name: ListenerArn
+
+  ECSServiceName:
+    Value: !Ref ECSService
+    Export:
+      Name: ECSService
+
+  TaskDefinitionArn:
+    Value: !Ref TaskDefinition
+    Export:
+      Name: TaskDefinition
+
+  SecurityGroup:
+    Value: !Ref SecurityGroup
+    Export:
+      Name: SG-P-8000
