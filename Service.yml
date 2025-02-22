@@ -127,6 +127,7 @@ Resources:
     Properties:
       Family: task-family-fastapi
       NetworkMode: "bridge"
+      ExecutionRoleArn: !Ref ECSExecutionRole
       ContainerDefinitions:
         - Name: Deploy
           Image: "503561429281.dkr.ecr.us-east-1.amazonaws.com/fastapi-cloud:latest"
@@ -135,6 +136,18 @@ Resources:
           PortMappings:
             - ContainerPort: 8000
               HostPort: 8000
+          Environment:
+            - Name: DB_HOST
+              Value: "fastapi-rds-mysql-public.cdg8ka0syqql.us-east-1.rds.amazonaws.com"
+            - Name: DB_PORT
+              Value: "3306"
+            - Name: DB_NAME
+              Value: "FastapiCloudFormation"
+          Secrets:
+            - Name: DB_USER
+              ValueFrom: "arn:aws:secretsmanager:us-east-1:503561429281:secret:RDSCredentials-tjBzuc:usurname"
+            - Name: DB_PASSWORD
+              ValueFrom: "arn:aws:secretsmanager:us-east-1:503561429281:secret:RDSCredentials-tjBzuc:password"
 
   ECSService:
     Type: AWS::ECS::Service
