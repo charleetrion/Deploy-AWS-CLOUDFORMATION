@@ -1,5 +1,0 @@
-DB_HOST=fastapi-rds-mysql-public.cdg8ka0syqql.us-east-1.rds.amazonaws.com
-DB_PORT=3306
-DB_NAME=FastapiCloudFormation
-DB_USER=admin
-DB_PASSWORD=CDAR159930j
