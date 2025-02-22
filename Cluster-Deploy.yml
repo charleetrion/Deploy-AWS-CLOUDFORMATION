@@ -37,14 +37,17 @@ Resources:
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash
-            echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
-            yum install -y aws-cfn-bootstrap
-            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
+            yum update -y
+            amazon-linux-extras enable ecs
+            yum install -y ecs-init aws-cfn-bootstrap
+            systemctl enable --now ecs
+            echo "ECS_CLUSTER=${ECSCluster}" >> /etc/ecs/ecs.config
+            systemctl restart ecs
+            opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource ECSInstanceLaunchTemplate --region ${AWS::Region}
             /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
 
   ECSAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
-    DependsOn: "ECSInstanceLaunchTemplate"
     Properties:
       VPCZoneIdentifier:
         - !ImportValue "MyPrivateSubnetId"
@@ -56,6 +59,9 @@ Resources:
         Version: !GetAtt ECSInstanceLaunchTemplate.LatestVersionNumber
       MetricsCollection:
         - Granularity: "1Minute"
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: true
 
   ECSInstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -97,6 +103,16 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
         - arn:aws:iam::aws:policy/AWSCloudFormationFullAccess
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Policies:
+        - PolicyName: ECSClusterJoinPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecs:JoinCluster
+                Resource: "*"
 
 Outputs:
   ECSClusterName:
