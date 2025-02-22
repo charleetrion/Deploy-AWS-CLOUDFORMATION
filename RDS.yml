@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  DBName:
+    Type: String
+    Default: 'FastapiCloudFormation'
+  DBUser:
+    Type: String
+    Default: 'admin'
+  DBPassword:
+    Type: String
+    NoEcho: true
+  DBInstanceClass:
+    Type: String
+    Default: 'db.t3.micro'
+  DBAllocatedStorage:
+    Type: Number
+    Default: 20
+
+Resources:
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Permitir acceso"
+      VpcId: !ImportValue MyVPCId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 0.0.0.0/0
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: 'Grupo de subredes para RDS'
+      SubnetIds:
+        - !ImportValue MyPublicSubnetId
+        - !ImportValue MyPublicSubnet2Id
+
+  MySQLDatabase:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: 'fastapi-rds-mysql-public'
+      DBName: !Ref DBName
+      Engine: 'mysql'
+      MasterUsername: !Ref DBUser
+      MasterUserPassword: !Ref DBPassword
+      DBInstanceClass: !Ref DBInstanceClass
+      AllocatedStorage: !Ref DBAllocatedStorage
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      MultiAZ: false
+      PubliclyAccessible: true
+      StorageType: gp2
+      BackupRetentionPeriod: 7
+
+Outputs:
+  RDSMySQLEndpoint:
+    Description: 'Endpoint de la base de datos RDS'
+    Value: !GetAtt MySQLDatabase.Endpoint.Address
+    Export:
+      Name: RDSMySQLEndpoint
