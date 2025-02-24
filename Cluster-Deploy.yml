@@ -30,7 +30,7 @@ Resources:
         IamInstanceProfile:
           Name: !Ref ECSInstanceProfile
         NetworkInterfaces:
-          - AssociatePublicIpAddress: false
+          - AssociatePublicIpAddress: true
             DeviceIndex: 0
             Groups:
               - !Ref ECSInstanceSecurityGroup
@@ -41,10 +41,11 @@ Resources:
             amazon-linux-extras enable ecs
             yum install -y ecs-init aws-cfn-bootstrap
             systemctl enable --now ecs
-            echo "ECS_CLUSTER=${ECSCluster}" >> /etc/ecs/ecs.config
+            echo "ECS_CLUSTER=${ECSCluster}" | tee -a /etc/ecs/ecs.config
+            echo "ECS_ENABLE_CONTAINER_METADATA=true" | tee -a /etc/ecs/ecs.config
             systemctl restart ecs
-            opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource ECSInstanceLaunchTemplate --region ${AWS::Region}
-            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource ECSInstanceLaunchTemplate --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSInstanceLaunchTemplate --region ${AWS::Region}
 
   ECSAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -112,6 +113,19 @@ Resources:
               - Effect: Allow
                 Action:
                   - ecs:JoinCluster
+                  - ecs:RegisterContainerInstance
+                  - ecs:DeregisterContainerInstance
+                  - ecs:DiscoverPollEndpoint
+                  - ecs:StartTelemetrySession
+                  - ecs:SubmitContainerStateChange
+                  - ecs:SubmitTaskStateChange
+                  - ecs:ListContainerInstances
+                  - ecs:DescribeClusters
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - ec2:DescribeInstances
+                  - ec2:DescribeTags
+                  - ssm:GetParameter
                 Resource: "*"
 
 Outputs:
