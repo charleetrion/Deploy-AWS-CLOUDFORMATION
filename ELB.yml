@@ -8,10 +8,6 @@ Resources:
       VpcId:  !ImportValue MyVPCId
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
@@ -34,29 +30,15 @@ Resources:
         - Key: "Name"
           Value: "MyApplicationLoadBalancer"
 
-  MyTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Name: "MyAppTargetGroup"
-      VpcId: !ImportValue MyVPCId
-      Port: 80
-      Protocol: HTTP
-      TargetType: instance
-      HealthCheckPath: /
-      HealthCheckIntervalSeconds: 30
-      HealthCheckTimeoutSeconds: 10
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 5
-
   MyListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       LoadBalancerArn: !Ref MyLoadBalancer
-      Port: 80
+      Port: 443
       Protocol: HTTP
       DefaultActions:
         - Type: forward
-          TargetGroupArn: !Ref MyTargetGroup
+          TargetGroupArn: !ImportValue TargetGroupArn
 
 Outputs:
   LoadBalancerDNSName:
@@ -64,12 +46,13 @@ Outputs:
     Export:
       Name: MyLoadBalancerDNSName
 
-  LoadBalancerSecurityGroupId:
+  MyLoadBalancerSecurityGroupId:
     Value: !Ref MyLoadBalancerSecurityGroup
     Export:
       Name: MyLoadBalancerSecurityGroupId
 
-  ApplicationTargetGroupArn:
-    Value: !Ref MyTargetGroup
+  ALBListenerArn:
+    Description: ARN del Listener del ALB
+    Value: !Ref MyListener
     Export:
-      Name: MyAppTargetGroupArn
+      Name: ALBListenerArn

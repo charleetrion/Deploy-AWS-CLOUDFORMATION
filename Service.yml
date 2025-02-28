@@ -74,53 +74,18 @@ Resources:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
 
-  LoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Name: load-balancer-8000
-      Scheme: internet-facing
-      Subnets:
-        - !ImportValue MyPublicSubnetId
-        - !ImportValue MyPublicSubnet2Id
-      SecurityGroups:
-        - !Ref SecurityGroup
-      Type: application
-
-  TargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Name: "target-group-8000"
-      VpcId: !ImportValue MyVPCId
-      Port: 8000
-      Protocol: HTTP
-      TargetType: instance
-      HealthCheckIntervalSeconds: 30
-      HealthCheckPath: "/health"
-      HealthCheckPort: 8000
-      HealthCheckProtocol: HTTP
-
-  Listener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      LoadBalancerArn: !Ref LoadBalancer
-      Port: 8000
-      Protocol: HTTP
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref TargetGroup
-
   ListenerRuleHealthCheck:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
-      ListenerArn: !Ref Listener
-      Priority: 1  # Ajusta la prioridad si tienes más reglas
+      ListenerArn: !ImportValue ALBListenerArn
+      Priority: 1
       Conditions:
         - Field: "path-pattern"
           Values:
-            - "/health"
+            - "/health/*"
       Actions:
         - Type: "forward"
-          TargetGroupArn: !Ref TargetGroup
+          TargetGroupArn: !ImportValue TargetGroupArn
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -151,39 +116,20 @@ Resources:
 
   ECSService:
     Type: AWS::ECS::Service
-    DependsOn: Listener
+    DependsOn: ListenerRuleHealthCheck
     Properties:
       Cluster: !ImportValue ECSClusterName
       ServiceName: service-fastapi
       TaskDefinition: !Ref TaskDefinition
       DesiredCount: 1
       LaunchType: EC2
+      HealthCheckGracePeriodSeconds: 15
       LoadBalancers:
         - ContainerName: Deploy
           ContainerPort: 8000
-          TargetGroupArn: !Ref TargetGroup
+          TargetGroupArn: !ImportValue TargetGroupArn
 
 Outputs:
-  LoadBalancerDNSName:
-    Value: !GetAtt LoadBalancer.DNSName
-    Export:
-      Name: LoadBalancerDNSName
-
-  LoadBalancerArn:
-    Value: !Ref LoadBalancer
-    Export:
-      Name: LoadBalancerArn
-
-  TargetGroupArn:
-    Value: !Ref TargetGroup
-    Export:
-      Name: TargetGroupArn
-
-  ListenerArn:
-    Value: !Ref Listener
-    Export:
-      Name: ListenerArn
-
   ECSServiceName:
     Value: !Ref ECSService
     Export:

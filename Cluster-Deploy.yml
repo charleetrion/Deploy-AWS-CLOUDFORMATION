@@ -10,15 +10,62 @@ Parameters:
   maxSize:
     Type: Number
     Default: 1
+  DesiredCapacity:
+    Type: Number
+    Default: 1
   ECSAMI:
-    Type: String
-    Default: "ami-085ad6ae776d8f09c"
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id
 
 Resources:
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: "ECSCluster"
+
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn: ECSCluster
+    Properties:
+      VPCZoneIdentifier:
+        - !ImportValue "MyPublicSubnetId"
+       # - !ImportValue "MyPrivateSubnetId"
+      MinSize: !Ref minSize
+      MaxSize: !Ref maxSize
+      DesiredCapacity: !Ref DesiredCapacity
+      LaunchTemplate:
+        LaunchTemplateName:  "ECSLaunchTemplate"
+        Version: !GetAtt ECSInstanceLaunchTemplate.LatestVersionNumber
+      MetricsCollection:
+        - Granularity: "1Minute"
+    CreationPolicy:
+      ResourceSignal:
+        Count: !Ref minSize
+        Timeout: PT5M
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: true
+
+  ECSCapacityProvider:
+    Type: AWS::ECS::CapacityProvider
+    Properties:
+      Name: "EC2CapacityProvider"
+      AutoScalingGroupProvider:
+        AutoScalingGroupArn: !Ref ECSAutoScalingGroup
+        ManagedScaling:
+          Status: "ENABLED"
+          TargetCapacity: 100
+        ManagedTerminationProtection: "DISABLED"
+
+  ClusterCapacityProviderAssociation:
+    Type: AWS::ECS::ClusterCapacityProviderAssociations
+    Properties:
+      Cluster: !Ref ECSCluster
+      CapacityProviders:
+        - !Ref ECSCapacityProvider
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: !Ref ECSCapacityProvider
+          Weight: 1
 
   ECSInstanceLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -29,6 +76,8 @@ Resources:
         InstanceType: !Ref InstanceType
         IamInstanceProfile:
           Name: !Ref ECSInstanceProfile
+        Monitoring:
+          Enabled: true
         NetworkInterfaces:
           - AssociatePublicIpAddress: true
             DeviceIndex: 0
@@ -36,33 +85,10 @@ Resources:
               - !Ref ECSInstanceSecurityGroup
         UserData:
           Fn::Base64: !Sub |
-            #!/bin/bash
-            yum update -y
-            amazon-linux-extras enable ecs
-            yum install -y ecs-init aws-cfn-bootstrap
-            systemctl enable --now ecs
-            echo "ECS_CLUSTER=${ECSCluster}" | tee -a /etc/ecs/ecs.config
-            echo "ECS_ENABLE_CONTAINER_METADATA=true" | tee -a /etc/ecs/ecs.config
-            systemctl restart ecs
-            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource ECSInstanceLaunchTemplate --region ${AWS::Region}
-            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSInstanceLaunchTemplate --region ${AWS::Region}
-
-  ECSAutoScalingGroup:
-    Type: AWS::AutoScaling::AutoScalingGroup
-    Properties:
-      VPCZoneIdentifier:
-        - !ImportValue "MyPrivateSubnetId"
-      MinSize: !Ref minSize
-      MaxSize: !Ref maxSize
-      DesiredCapacity: !Ref minSize
-      LaunchTemplate:
-        LaunchTemplateName:  "ECSLaunchTemplate"
-        Version: !GetAtt ECSInstanceLaunchTemplate.LatestVersionNumber
-      MetricsCollection:
-        - Granularity: "1Minute"
-    UpdatePolicy:
-      AutoScalingReplacingUpdate:
-        WillReplace: true
+             #!/bin/bash -xe
+              echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+              yum install -y aws-cfn-bootstrap
+              /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource ECSAutoScalingGroup
 
   ECSInstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -103,8 +129,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
-        - arn:aws:iam::aws:policy/AWSCloudFormationFullAccess
-        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+
       Policies:
         - PolicyName: ECSClusterJoinPolicy
           PolicyDocument:
@@ -112,21 +137,30 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - ecs:JoinCluster
+                  - ecs:ListContainerInstances
+                  - ecs:DescribeClusters
+                  - ecs:DescribeContainerInstances
                   - ecs:RegisterContainerInstance
                   - ecs:DeregisterContainerInstance
+                  - ecs:UpdateContainerInstancesState
                   - ecs:DiscoverPollEndpoint
                   - ecs:StartTelemetrySession
                   - ecs:SubmitContainerStateChange
                   - ecs:SubmitTaskStateChange
-                  - ecs:ListContainerInstances
-                  - ecs:DescribeClusters
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                   - ec2:DescribeInstances
                   - ec2:DescribeTags
                   - ssm:GetParameter
+                  - ec2:DescribeNetworkInterfaces
+                  - ssm:DescribeInstanceInformation
                 Resource: "*"
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: "/ecs/practicante"
+      RetentionInDays: 3
+
 
 Outputs:
   ECSClusterName:
@@ -139,5 +173,5 @@ Outputs:
     Description: "ID del grupo de seguridad para las instancias de ECS"
     Value: !Ref ECSInstanceSecurityGroup
     Export:
-      Name: "MyECSInstanceSecurityGroupId"
+      Name: "ECSInstanceSecurityGroupId"
 
