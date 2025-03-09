@@ -24,7 +24,7 @@ Resources:
               - ecr:UploadLayerPart
               - ecr:CompleteLayerUpload
             Resource:
-              - "arn:aws:ecr:us-east-1:503561429281:repository/fastapi-cloud"
+              - "arn:aws:ecr:us-east-1:503561429281:repository/fastapi-app"
 
   ECSExecutionRole:
     Type: AWS::IAM::Role
@@ -36,18 +36,18 @@ Resources:
             Principal:
               Service: ecs-tasks.amazonaws.com
             Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        - arn:aws:iam::aws:policy/SecretsManagerReadWrite
       Policies:
-        - PolicyName: ECSExecutionPolicy
+        - PolicyName: ECSSecretAccess
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
-                  - ecr:GetAuthorizationToken
-                  - ecr:BatchCheckLayerAvailability
-                  - ecr:GetDownloadUrlForLayer
-                  - ecr:BatchGetImage
-                Resource: "*"
+                  - secretsmanager:GetSecretValue
+                Resource: "arn:aws:secretsmanager:us-east-1:503561429281:secret:fastapi-db-credentials"
 
   TaskRole:
     Type: AWS::IAM::Role
@@ -59,6 +59,20 @@ Resources:
             Principal:
               Service: ecs-tasks.amazonaws.com
             Action: sts:AssumeRole
+
+  TaskRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: SecretAccess
+      Roles:
+         - !Ref TaskRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: "arn:aws:secretsmanager:us-east-1:503561429281:secret:fastapi-db-credentials"
 
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -82,7 +96,7 @@ Resources:
       Conditions:
         - Field: "path-pattern"
           Values:
-            - "/health/*"
+            - "/*"
       Actions:
         - Type: "forward"
           TargetGroupArn: !ImportValue TargetGroupArn
@@ -95,24 +109,41 @@ Resources:
       ExecutionRoleArn: !Ref ECSExecutionRole
       ContainerDefinitions:
         - Name: Deploy
-          Image: "503561429281.dkr.ecr.us-east-1.amazonaws.com/fastapi-cloud:latest"
+          Image: "503561429281.dkr.ecr.us-east-1.amazonaws.com/fastapi-app:latest"
           Memory: 128
           Cpu: 128
+          essential: true
           PortMappings:
             - ContainerPort: 8000
               HostPort: 8000
           Environment:
             - Name: DB_HOST
-              Value: "fastapi-rds-mysql-public.cdg8ka0syqql.us-east-1.rds.amazonaws.com"
+              Value: fastapi-rds-mysql-public.cdg8ka0syqql.us-east-1.rds.amazonaws.com
             - Name: DB_PORT
               Value: "3306"
             - Name: DB_NAME
               Value: "FastapiCloudFormation"
-          Secrets:
             - Name: DB_USER
-              ValueFrom: "arn:aws:secretsmanager:us-east-1:503561429281:secret:RDSCredentials-tjBzuc:usurname"
+              Value: "admin"
             - Name: DB_PASSWORD
-              ValueFrom: "arn:aws:secretsmanager:us-east-1:503561429281:secret:RDSCredentials-tjBzuc:password"
+              Value: "CDAR159930j"
+          #Secrets:
+          #  - Name: DB_USER
+          #    ValueFrom: arn:aws:secretsmanager:us-east-1:503561429281:secret:fastapi-db-credentials
+          #  - Name: DB_PASSWORD
+          #    ValueFrom: arn:aws:secretsmanager:us-east-1:503561429281:secret:fastapi-db-credentials
+          #  - Name: DB_HOST
+          #    ValueFrom: arn:aws:secretsmanager:us-east-1:503561429281:secret:fastapi-db-credentials
+          #  - Name: DB_PORT
+          #    ValueFrom: arn:aws:secretsmanager:us-east-1:503561429281:secret:fastapi-db-credentials
+          #  - Name: DB_NAME
+          #    ValueFrom: arn:aws:secretsmanager:us-east-1:503561429281:secret:fastapi-db-credentials
+          logConfiguration:
+            logDriver: awslogs
+            options:
+              awslogs-group: "/ecs/practicante"
+              awslogs-region: "us-east-1"
+              awslogs-stream-prefix: "ecs"
 
   ECSService:
     Type: AWS::ECS::Service
