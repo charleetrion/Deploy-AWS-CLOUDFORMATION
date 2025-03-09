@@ -28,11 +28,12 @@ Resources:
     DependsOn: ECSCluster
     Properties:
       VPCZoneIdentifier:
-        - !ImportValue "MyPublicSubnetId"
-       # - !ImportValue "MyPrivateSubnetId"
+       - !ImportValue "MyPublicSubnetId"
       MinSize: !Ref minSize
       MaxSize: !Ref maxSize
       DesiredCapacity: !Ref DesiredCapacity
+      TargetGroupARNs:
+        - !ImportValue "TargetGroupArn"
       LaunchTemplate:
         LaunchTemplateName:  "ECSLaunchTemplate"
         Version: !GetAtt ECSInstanceLaunchTemplate.LatestVersionNumber
@@ -43,29 +44,8 @@ Resources:
         Count: !Ref minSize
         Timeout: PT5M
     UpdatePolicy:
-      AutoScalingReplacingUpdate:
-        WillReplace: true
-
-  ECSCapacityProvider:
-    Type: AWS::ECS::CapacityProvider
-    Properties:
-      Name: "EC2CapacityProvider"
-      AutoScalingGroupProvider:
-        AutoScalingGroupArn: !Ref ECSAutoScalingGroup
-        ManagedScaling:
-          Status: "ENABLED"
-          TargetCapacity: 100
-        ManagedTerminationProtection: "DISABLED"
-
-  ClusterCapacityProviderAssociation:
-    Type: AWS::ECS::ClusterCapacityProviderAssociations
-    Properties:
-      Cluster: !Ref ECSCluster
-      CapacityProviders:
-        - !Ref ECSCapacityProvider
-      DefaultCapacityProviderStrategy:
-        - CapacityProvider: !Ref ECSCapacityProvider
-          Weight: 1
+        AutoScalingReplacingUpdate:
+          WillReplace: true
 
   ECSInstanceLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -85,9 +65,9 @@ Resources:
               - !Ref ECSInstanceSecurityGroup
         UserData:
           Fn::Base64: !Sub |
-             #!/bin/bash -xe
+              #!/bin/bash -xe
               echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
-              yum install -y aws-cfn-bootstrap
+              yum install -y aws-cfn-bootstrap 
               /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource ECSAutoScalingGroup
 
   ECSInstanceSecurityGroup:
@@ -101,8 +81,8 @@ Resources:
           ToPort: 22
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
-          FromPort: 0
-          ToPort: 65535
+          FromPort: 8000
+          ToPort: 8000
           SourceSecurityGroupId: !ImportValue "MyLoadBalancerSecurityGroupId"
       SecurityGroupEgress:
         - IpProtocol: "-1"
@@ -154,6 +134,8 @@ Resources:
                   - ssm:GetParameter
                   - ec2:DescribeNetworkInterfaces
                   - ssm:DescribeInstanceInformation
+                  - cloudformation:SignalResource
+                  - cloudformation:DescribeStackResource
                 Resource: "*"
   LogGroup:
     Type: AWS::Logs::LogGroup
@@ -164,7 +146,7 @@ Resources:
 
 Outputs:
   ECSClusterName:
-    Description: Nombre del clúster de ECS
+    Description: Nombre del clúster de ECSs
     Value: !Ref ECSCluster
     Export:
       Name: ECSClusterName
