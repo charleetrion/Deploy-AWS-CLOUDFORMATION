@@ -57,7 +57,7 @@ Resources:
       CidrBlock: !Ref PublicSubnet2Cidr
       VpcId: !Ref MyVPC
       MapPublicIpOnLaunch: true
-      AvailabilityZone: !Select [1, !GetAZs '']  # Puedes ajustar la zona de disponibilidad
+      AvailabilityZone: !Select [1, !GetAZs '']
       Tags:
         - Key: Name
           Value: PublicSubnet2
