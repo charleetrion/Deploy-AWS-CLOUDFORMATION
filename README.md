@@ -22,7 +22,7 @@ Antes de desplegar estos archivos, asegúrate de tener:
 - **Docker** instalado para construir la imagen de la aplicación.
 - **FastAPI** instalado si deseas probar localmente la aplicación antes de desplegar.
 
-###📌 Notas
+### 📌 Notas
 
 - Los parámetros como nombres de servicios, subnets y ARN de roles deben ajustarse según tu entorno.
 - Revisa las dependencias entre archivos antes de desplegar.
