@@ -127,17 +127,6 @@ Resources:
               Value: "admin"
             - Name: DB_PASSWORD
               Value: "CDAR159930j"
-          #Secrets:
-          #  - Name: DB_USER
-          #    ValueFrom: arn:aws:secretsmanager:us-east-1:503561429281:secret:fastapi-db-credentials
-          #  - Name: DB_PASSWORD
-          #    ValueFrom: arn:aws:secretsmanager:us-east-1:503561429281:secret:fastapi-db-credentials
-          #  - Name: DB_HOST
-          #    ValueFrom: arn:aws:secretsmanager:us-east-1:503561429281:secret:fastapi-db-credentials
-          #  - Name: DB_PORT
-          #    ValueFrom: arn:aws:secretsmanager:us-east-1:503561429281:secret:fastapi-db-credentials
-          #  - Name: DB_NAME
-          #    ValueFrom: arn:aws:secretsmanager:us-east-1:503561429281:secret:fastapi-db-credentials
           logConfiguration:
             logDriver: awslogs
             options:
