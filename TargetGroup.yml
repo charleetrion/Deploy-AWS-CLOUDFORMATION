@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Resources:
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: "target-group-8000"
+      VpcId: !ImportValue MyVPCId
+      Port: 8000
+      Protocol: HTTP
+      TargetType: instance
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: "/health"
+      HealthCheckPort: 8000
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      Matcher:
+        HttpCode: "200"
+
+Outputs:
+  TargetGroupArn:
+    Value: !Ref TargetGroup
+    Export:
+      Name: TargetGroupArn
