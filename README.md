@@ -1,4 +1,4 @@
-# Deployment on AWS ECS with EC2 - CLOUDFORMATION
+# AWS ECS + EC2 - CLOUDFORMATION
 
 This repository contains YAML configuration files for deploying services on AWS using CloudFormation.
 
