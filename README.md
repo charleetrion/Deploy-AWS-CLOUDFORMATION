@@ -1,33 +1,33 @@
-# Despliegue en AWS ECS con EC2 - CLOUDFORMATION
+# Deployment on AWS ECS with EC2 - CLOUDFORMATION
 
-Este repositorio contiene archivos de configuración en YAML para desplegar servicios en AWS utilizando CloudFormation.
+This repository contains YAML configuration files for deploying services on AWS using CloudFormation.
 
-## 🚀 Descripción
+## 🚀 Description
 
-El proyecto facilita la implementación de infraestructura en AWS, utilizando **ECS con instancias EC2**. Aquí encontrarás los archivos necesarios para crear y gestionar los recursos en AWS de manera automatizada.
-Este despliegue incluye una aplicación desarrollada en **FastAPI**, empaquetada en una imagen de **Docker** y alojada en **AWS ECR**.
+This project facilitates the deployment of infrastructure on AWS using ECS ​​with EC2 instances. Here you will find the files needed to automatically create and manage resources on AWS.
+This deployment includes an application developed in FastAPI, packaged in a Docker image, and hosted on AWS ECR.
 
-## 📂 Estructura del repositorio
-* Cluster-Deploy.yml: Define el clúster ECS basado en instancias EC2, Autoscaling...
-* VPC.yml :  Configura la VPC, subnets, rutas ...
-* Service.yml: Creacion de **ListenerRuleHealthCheck**, **TaskDefinition**, **ECSService** ...
-* ELB.yml: Define la configuración del **ALB**, **Grupo de Seguridad** y **Listener** ...
+## 📂 Repository Structure
+* Cluster-Deploy.yml: Defines the ECS cluster based on EC2 instances, Autoscaling...
+* VPC.yml: Configures the VPC, subnets, routes...
+* Service.yml: Creates **ListenerRuleHealthCheck**, **TaskDefinition**, **ECSService**...
+* ELB.yml: Defines the **ALB**, **Security Group**, and **Listener** configuration...
 
-## 📌 Requisitos
+## 📌 Requirements
 
-Antes de desplegar estos archivos, asegúrate de tener:
+Before deploying these files, make sure you have:
 
-- Una cuenta de **AWS** con permisos para utilizar CloudFormation, ECS y EC2.
-- **AWS CLI** instalado y configurado con credenciales válidas.
-- **Docker** instalado para construir la imagen de la aplicación.
-- **FastAPI** instalado si deseas probar localmente la aplicación antes de desplegar.
+- An **AWS** account with permissions to use CloudFormation, ECS, and EC2.
+- **AWS CLI** installed and configured with valid credentials.
+- **Docker** installed to build the application image.
+- **FastAPI** installed if you want to test the application locally before deploying.
 
-### 📌 Notas
+### 📌 Notes
 
-- Los parámetros como nombres de servicios, subnets y ARN de roles deben ajustarse según tu entorno.
-- Revisa las dependencias entre archivos antes de desplegar.
-- Puedes modificar las definiciones YAML según los requerimientos de tu proyecto.
-- Asegúrate de actualizar la imagen en ECR antes de actualizar el stack.
+- Parameters such as service names, subnets, and role ARNs should be adjusted according to your environment.
+- Review file dependencies before deploying.
+- You can modify the YAML definitions according to your project's requirements.
+- Make sure to update the image in ECR before updating the stack.
 
-📌 **Autor:** [charleetrion](https://github.com/charleetrion)  
-🛠️ **Tecnologías:** AWS CloudFormation, ECS, EC2, Secrets Manager, Load Balancer, FastAPI, Docker
+📌 **Author:** [charleetrion](https://github.com/charleetrion)
+🛠️ **Technologies:** AWS CloudFormation, ECS, EC2, Secrets Manager, Load Balancer, FastAPI, Docker
